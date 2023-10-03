@@ -54,6 +54,15 @@ app.post('/new/blog', (req, res) => {
 	});
 });
 
+app.get('/blogs', (req, res) => {
+	Blog.findAll({
+		attributes: ['title'],
+	}).then((blogs) => {
+		console.log(blogs);
+		res.json(blogs);
+	});
+});
+
 app.post('/new/comment/:blog_id', (req, res) => {
 	const { blog_id } = req.params;
 	const { message } = req.body;
