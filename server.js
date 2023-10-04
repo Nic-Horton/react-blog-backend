@@ -88,6 +88,17 @@ app.post('/new/comment/:blog_id', (req, res) => {
 	});
 });
 
+app.get('/comments/:blog_id', (req, res) => {
+	const { blog_id } = req.params;
+	Comment.findAll({
+		attributes: ['message'],
+		where: { blog_id },
+	}).then((comments) => {
+		console.log(comments);
+		res.json(comments);
+	});
+});
+
 app.listen(3001, () => {
 	console.log('app started in port 3001');
 });
