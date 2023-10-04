@@ -56,10 +56,21 @@ app.post('/new/blog', (req, res) => {
 
 app.get('/blogs', (req, res) => {
 	Blog.findAll({
-		attributes: ['title'],
+		attributes: ['id', 'title'],
 	}).then((blogs) => {
 		console.log(blogs);
 		res.json(blogs);
+	});
+});
+
+app.get('/blogs/:id', (req, res) => {
+	const { id } = req.params;
+	Blog.findOne({
+		attributes: ['id', 'title', 'content'],
+		where: { id },
+	}).then((blog) => {
+		console.log(blog);
+		res.json(blog);
 	});
 });
 
