@@ -4,8 +4,30 @@ const { Op } = require('sequelize');
 const cors = require('cors');
 const app = express();
 
+// const session = require('express-session');
+// const cookieParser = require('cookie-parser');
+// const SessionStore = require('express-session-sequelize')(session.Store);
+const PORT = 3001;
+
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+// const sequelizeSessionStore = new SessionStore({
+// 	db: sequelize,
+// });
+
 app.use(cors());
 app.use(express.json());
+// app.use(cookieParser());
+// app.use(
+// 	session({
+// 		secret: 'your-secret-key',
+// 		resave: false,
+// 		saveUninitialized: true,
+// 		store: sequelizeSessionStore,
+// 		cookie: { maxAge: 10800000 },
+// 	})
+// );
 
 app.post('/register', (req, res) => {
 	const { username, email, password } = req.body;
@@ -16,7 +38,14 @@ app.post('/register', (req, res) => {
 		});
 	}
 
-	User.create({ username, email, password }).then((new_user) => {
+	const emailExists = Users.findOne({ where: { email } });
+	if (emailExists) {
+		return res.json({ error: 'email in use' });
+	}
+
+	let hashPassword = bcrypt.hashSync(password, saltRounds);
+
+	User.create({ username, email, password: hashPassword }).then((new_user) => {
 		res.json(new_user);
 	});
 });
@@ -32,7 +61,10 @@ app.post('/login', (req, res) => {
 
 			console.log(user);
 
-			if (password === user.password) {
+			let comparison = bcrypt.compareSync(password, user.password);
+
+			if (comparison == true) {
+				// req.session.user = user;
 				res.json({ success: true });
 			} else {
 				res.json({ success: false });
@@ -40,6 +72,12 @@ app.post('/login', (req, res) => {
 		}
 	);
 });
+
+// app.get('/logout', (req, res) => {
+// 	req.session.destroy(() => {
+// 		res.json({ message: 'session destroyed', session: req.session });
+// 	});
+// });
 
 app.post('/new/blog', (req, res) => {
 	const { title, content } = req.body;
@@ -74,6 +112,35 @@ app.get('/blogs/:id', (req, res) => {
 	});
 });
 
+app.put('/blogs/:id', (req, res) => {
+	const { id } = req.params;
+	const { title, content } = req.body;
+	const updateFields = {};
+	if (title) {
+		updateFields.title = title;
+	}
+	if (content) {
+		updateFields.content = content;
+	}
+	Blog.update(updateFields, { where: { id } })
+		.then((result) => {
+			console.log(result);
+			res.json({ success: true });
+		})
+		.catch((error) => {
+			console.log(error);
+			res.json({ error: 'There was a problem updating your information' });
+		});
+});
+
+app.delete('/blogs/:id', (req, res) => {
+	const { id } = req.params;
+	Blog.destroy({ where: { id } }).then((results) => {
+		console.log(results);
+		res.json({ success: true });
+	});
+});
+
 app.post('/new/comment/:blog_id', (req, res) => {
 	const { blog_id } = req.params;
 	const { message } = req.body;
@@ -99,6 +166,29 @@ app.get('/comments/:blog_id', (req, res) => {
 	});
 });
 
-app.listen(3001, () => {
-	console.log('app started in port 3001');
+app.put('/comments/:id', (req, res) => {
+	const { id } = req.params;
+	const { message } = req.body;
+
+	Comment.update({ message }, { where: { id } })
+		.then((result) => {
+			console.log(result);
+			res.json({ success: true });
+		})
+		.catch((error) => {
+			console.log(error);
+			res.json({ error: 'There was a problem updating your information' });
+		});
+});
+
+app.delete('/comments/:id', (req, res) => {
+	const { id } = req.params;
+	Comment.destroy({ where: { id } }).then((results) => {
+		console.log(results);
+		res.json({ success: true });
+	});
+});
+
+app.listen(PORT, () => {
+	console.log('app started in port ' + PORT);
 });
