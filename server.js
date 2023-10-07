@@ -4,32 +4,40 @@ const { Op } = require('sequelize');
 const cors = require('cors');
 const app = express();
 
-// const session = require('express-session');
-// const cookieParser = require('cookie-parser');
-// const SessionStore = require('express-session-sequelize')(session.Store);
+const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const SessionStore = require('express-session-sequelize')(session.Store);
 const PORT = 3001;
 
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
-// const sequelizeSessionStore = new SessionStore({
-// 	db: sequelize,
-// });
+const sequelizeSessionStore = new SessionStore({
+	db: sequelize,
+});
 
 app.use(cors());
 app.use(express.json());
-// app.use(cookieParser());
-// app.use(
-// 	session({
-// 		secret: 'your-secret-key',
-// 		resave: false,
-// 		saveUninitialized: true,
-// 		store: sequelizeSessionStore,
-// 		cookie: { maxAge: 10800000 },
-// 	})
-// );
+app.use(cookieParser());
+app.use(
+	session({
+		secret: 'your-secret-key',
+		resave: false,
+		saveUninitialized: true,
+		store: sequelizeSessionStore,
+		cookie: { maxAge: 10800000 },
+	})
+);
 
-app.post('/register', (req, res) => {
+const isLoggedIn = (req, res, next) => {
+	if (req.session.user) {
+		next();
+	} else {
+		return res.json({ error: 'Please Log In' });
+	}
+};
+
+app.post('/register', async (req, res) => {
 	const { username, email, password } = req.body;
 
 	if (!email || !password || !username) {
@@ -38,7 +46,7 @@ app.post('/register', (req, res) => {
 		});
 	}
 
-	const emailExists = Users.findOne({ where: { email } });
+	const emailExists = await User.findOne({ where: { email } });
 	if (emailExists) {
 		return res.json({ error: 'email in use' });
 	}
@@ -64,7 +72,7 @@ app.post('/login', (req, res) => {
 			let comparison = bcrypt.compareSync(password, user.password);
 
 			if (comparison == true) {
-				// req.session.user = user;
+				req.session.user = user;
 				res.json({ success: true });
 			} else {
 				res.json({ success: false });
@@ -73,13 +81,13 @@ app.post('/login', (req, res) => {
 	);
 });
 
-// app.get('/logout', (req, res) => {
-// 	req.session.destroy(() => {
-// 		res.json({ message: 'session destroyed', session: req.session });
-// 	});
-// });
+app.get('/logout', (req, res) => {
+	req.session.destroy(() => {
+		res.json({ message: 'session destroyed', session: req.session });
+	});
+});
 
-app.post('/new/blog', (req, res) => {
+app.post('/new/blog', isLoggedIn, (req, res) => {
 	const { title, content } = req.body;
 	if (!title || !content) {
 		return res.json({
@@ -112,7 +120,7 @@ app.get('/blogs/:id', (req, res) => {
 	});
 });
 
-app.put('/blogs/:id', (req, res) => {
+app.put('/blogs/:id', isLoggedIn, (req, res) => {
 	const { id } = req.params;
 	const { title, content } = req.body;
 	const updateFields = {};
@@ -133,7 +141,7 @@ app.put('/blogs/:id', (req, res) => {
 		});
 });
 
-app.delete('/blogs/:id', (req, res) => {
+app.delete('/blogs/:id', isLoggedIn, (req, res) => {
 	const { id } = req.params;
 	Blog.destroy({ where: { id } }).then((results) => {
 		console.log(results);
@@ -166,7 +174,7 @@ app.get('/comments/:blog_id', (req, res) => {
 	});
 });
 
-app.put('/comments/:id', (req, res) => {
+app.put('/comments/:id', isLoggedIn, (req, res) => {
 	const { id } = req.params;
 	const { message } = req.body;
 
@@ -181,7 +189,7 @@ app.put('/comments/:id', (req, res) => {
 		});
 });
 
-app.delete('/comments/:id', (req, res) => {
+app.delete('/comments/:id', isLoggedIn, (req, res) => {
 	const { id } = req.params;
 	Comment.destroy({ where: { id } }).then((results) => {
 		console.log(results);
