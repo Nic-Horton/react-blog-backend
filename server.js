@@ -9,6 +9,15 @@ const cookieParser = require('cookie-parser');
 const SessionStore = require('express-session-sequelize')(session.Store);
 const PORT = 3001;
 
+const corsOptions = {
+	origin: 'http://localhost:3000',
+	credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
+
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
@@ -16,9 +25,6 @@ const sequelizeSessionStore = new SessionStore({
 	db: sequelize,
 });
 
-app.use(cors());
-app.use(express.json());
-app.use(cookieParser());
 app.use(
 	session({
 		secret: 'your-secret-key',
@@ -36,6 +42,14 @@ const isLoggedIn = (req, res, next) => {
 		return res.json({ error: 'Please Log In' });
 	}
 };
+
+app.get('/authenticate', (req, res) => {
+	if (req.session.user) {
+		return res.json({ isLoggedIn: true });
+	} else {
+		return res.json({ isLoggedIn: false });
+	}
+});
 
 app.post('/register', async (req, res) => {
 	const { username, email, password } = req.body;
@@ -59,26 +73,26 @@ app.post('/register', async (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-	const { email, username, password } = req.body;
+	const { username, password } = req.body;
 
-	User.findOne({ where: { [Op.or]: [{ email }, { username }] } }).then(
-		(user) => {
-			if (!user) {
-				return res.json({ error: 'No user found' });
-			}
-
-			console.log(user);
-
-			let comparison = bcrypt.compareSync(password, user.password);
-
-			if (comparison == true) {
-				req.session.user = user;
-				res.json({ success: true });
-			} else {
-				res.json({ success: false });
-			}
+	User.findOne({
+		where: { [Op.or]: [{ email: username }, { username }] },
+	}).then((user) => {
+		if (!user) {
+			return res.json({ error: 'No user found' });
 		}
-	);
+
+		console.log(user);
+
+		let comparison = bcrypt.compareSync(password, user.password);
+
+		if (comparison == true) {
+			req.session.user = user;
+			res.json({ success: true });
+		} else {
+			res.json({ success: false });
+		}
+	});
 });
 
 app.get('/logout', (req, res) => {
@@ -95,9 +109,11 @@ app.post('/new/blog', isLoggedIn, (req, res) => {
 		});
 	}
 
-	Blog.create({ title, content }).then((new_blog) => {
-		res.json(new_blog);
-	});
+	Blog.create({ title, content, user_id: req.session.user.id }).then(
+		(new_blog) => {
+			res.json(new_blog);
+		}
+	);
 });
 
 app.get('/blogs', (req, res) => {
@@ -149,7 +165,7 @@ app.delete('/blogs/:id', isLoggedIn, (req, res) => {
 	});
 });
 
-app.post('/new/comment/:blog_id', (req, res) => {
+app.post('/new/comment/:blog_id', isLoggedIn, (req, res) => {
 	const { blog_id } = req.params;
 	const { message } = req.body;
 	if (!message) {
@@ -158,9 +174,11 @@ app.post('/new/comment/:blog_id', (req, res) => {
 		});
 	}
 
-	Comment.create({ message, blog_id }).then((new_comment) => {
-		res.json(new_comment);
-	});
+	Comment.create({ message, blog_id, user_id: req.session.user.id }).then(
+		(new_comment) => {
+			res.json(new_comment);
+		}
+	);
 });
 
 app.get('/comments/:blog_id', (req, res) => {
