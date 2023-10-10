@@ -151,7 +151,7 @@ app.get('/blogs/:id', (req, res) => {
 app.get('/user/blogs', isLoggedIn, (req, res) => {
 	Blog.findAll({
 		where: { user_id: req.session.user.id },
-		attributes: ['id', 'title'],
+		attributes: ['id', 'title', 'content'],
 	}).then((blogs) => {
 		console.log(blogs);
 		res.json(blogs);
