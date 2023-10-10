@@ -45,7 +45,7 @@ const isLoggedIn = (req, res, next) => {
 
 app.get('/authenticate', (req, res) => {
 	if (req.session.user) {
-		return res.json({ isLoggedIn: true });
+		return res.json({ isLoggedIn: true, user: req.session.user.username });
 	} else {
 		return res.json({ isLoggedIn: false });
 	}
@@ -119,6 +119,12 @@ app.post('/new/blog', isLoggedIn, (req, res) => {
 app.get('/blogs', (req, res) => {
 	Blog.findAll({
 		attributes: ['id', 'title'],
+		include: [
+			{
+				model: User,
+				attributes: ['username'],
+			},
+		],
 	}).then((blogs) => {
 		console.log(blogs);
 		res.json(blogs);
@@ -130,9 +136,25 @@ app.get('/blogs/:id', (req, res) => {
 	Blog.findOne({
 		attributes: ['id', 'title', 'content'],
 		where: { id },
+		include: [
+			{
+				model: User,
+				attributes: ['username'],
+			},
+		],
 	}).then((blog) => {
 		console.log(blog);
 		res.json(blog);
+	});
+});
+
+app.get('/user/blogs', isLoggedIn, (req, res) => {
+	Blog.findAll({
+		where: { user_id: req.session.user.id },
+		attributes: ['id', 'title'],
+	}).then((blogs) => {
+		console.log(blogs);
+		res.json(blogs);
 	});
 });
 
@@ -186,6 +208,22 @@ app.get('/comments/:blog_id', (req, res) => {
 	Comment.findAll({
 		attributes: ['id', 'message'],
 		where: { blog_id },
+		include: [
+			{
+				model: User,
+				attributes: ['username'],
+			},
+		],
+	}).then((comments) => {
+		console.log(comments);
+		res.json(comments);
+	});
+});
+
+app.get('/user/comments', isLoggedIn, (req, res) => {
+	Comment.findAll({
+		where: { user_id: req.session.user.id },
+		attributes: ['id', 'message'],
 	}).then((comments) => {
 		console.log(comments);
 		res.json(comments);
